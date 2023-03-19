@@ -7,7 +7,7 @@
 
 import UIKit
 
-class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class ViewController: UIViewController {
     var data = [String]()
     var alertController = UIAlertController()
     // table View'ı tanımlayalım
@@ -16,18 +16,6 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         super.viewDidLoad()
         tableView.delegate = self
         tableView.dataSource = self
-    }
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return data.count// aşağıdaki methodun kaç kere çalışacağını da belirtiyor
-    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        //var cell = UITableViewCell()
-        //Reussable cell oluşturma
-        let cell = tableView.dequeueReusableCell(withIdentifier: "defaultCell", for: indexPath)
-        cell.textLabel?.text = data[indexPath.row]
-        return cell
     }
     
     @IBAction func addBarButtonPressed(_ sender: UIBarButtonItem) {
@@ -98,5 +86,50 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         self.present(alertController, animated: true)
     }
     
+}
+//Extension sayesinde tableView methodlarını asıl class'ımıdan ayırmış olduk
+extension ViewController: UITableViewDelegate, UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return data.count// aşağıdaki methodun kaç kere çalışacağını da belirtiyor
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        //var cell = UITableViewCell()
+        //Reussable cell oluşturma
+        let cell = tableView.dequeueReusableCell(withIdentifier: "defaultCell", for: indexPath)
+        cell.textLabel?.text = data[indexPath.row]
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        
+        let deleteAction = UIContextualAction(style: .normal,
+                                              title: "Sil") { _, _, _ in
+            self.data.remove(at: indexPath.row)
+            tableView.reloadData()
+        }
+        deleteAction.backgroundColor = .systemRed
+        
+        let editAction = UIContextualAction(style: .normal,
+                                              title: "Düzenle") { _, _, _ in
+            self.presentAlert(title: "Elemanı Düzenle",
+                              message: nil,
+                              defaultButtonTitle: "Düzenle",
+                              cancelButtonTitle: "Vazgeç",
+                              isTextFieldAvaliable: true,
+                              defaultButtonHandler: { _ in
+                let text = self.alertController.textFields?.first?.text
+                if text != "" {
+                    self.data[indexPath.row] = text!
+                    self.tableView.reloadData()
+                } else {
+                    self.presentWarningAlert()
+                }
+            })
+        }
+        
+        let config = UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+        return config
+    }
 }
 
