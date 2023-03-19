@@ -1,14 +1,8 @@
-//
-//  ViewController.swift
-//  ListApp
-//
-//  Created by Hakan Hatipoğlu on 19.03.2023.
-//
-
 import UIKit
+import CoreData
 
 class ViewController: UIViewController {
-    var data = [String]()
+    var data = [NSManagedObject]()//Entitylerimizin kod tarafında karşılığı olan veri tipi
     var alertController = UIAlertController()
     // table View'ı tanımlayalım
     @IBOutlet weak var tableView: UITableView!
@@ -16,6 +10,7 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         tableView.delegate = self
         tableView.dataSource = self
+        fetch()
     }
     
     @IBAction func addBarButtonPressed(_ sender: UIBarButtonItem) {
@@ -39,14 +34,22 @@ class ViewController: UIViewController {
                      cancelButtonTitle: "Vazgeç",
                      isTextFieldAvaliable: true,
                      defaultButtonHandler: { _ in
-                            let text = self.alertController.textFields?.first?.text
-                            if text != "" {
-                                self.data.append((text)!)
-                                self.tableView.reloadData()
-                            } else {
-                                self.presentWarningAlert()
-                            }
-                        })
+            let text = self.alertController.textFields?.first?.text
+            if text != "" {
+                //Veritabanına erişip ve oraya bilgiyi kaydedicez
+                let appDelegate = UIApplication.shared.delegate as? AppDelegate
+                let managedObjectContext = appDelegate?.persistentContainer.viewContext
+                //Veritabanına kaydedeceğimiz entity'yi oluşturalım:
+                let entity = NSEntityDescription.entity(forEntityName: "ListItem", in: managedObjectContext!)
+                let listItem = NSManagedObject(entity: entity!, insertInto: managedObjectContext)
+                listItem.setValue(text, forKey: "title")
+                try? managedObjectContext?.save()
+                
+                self.fetch()
+            } else {
+                self.presentWarningAlert()
+            }
+        })
         
     }
     
@@ -86,6 +89,16 @@ class ViewController: UIViewController {
         self.present(alertController, animated: true)
     }
     
+    func fetch() {
+        //appDelegate'e ulaştık ve appDelegate üzerinden veritabanına ulaştık
+        let appDelegate = UIApplication.shared.delegate as? AppDelegate
+        let managedObjectContext = appDelegate?.persistentContainer.viewContext
+        //fetchRequest oluşturma
+        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "ListItem")
+        data = try! managedObjectContext!.fetch(fetchRequest)
+        tableView.reloadData()
+    }
+    
 }
 //Extension sayesinde tableView methodlarını asıl class'ımıdan ayırmış olduk
 extension ViewController: UITableViewDelegate, UITableViewDataSource {
@@ -97,7 +110,8 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         //var cell = UITableViewCell()
         //Reussable cell oluşturma
         let cell = tableView.dequeueReusableCell(withIdentifier: "defaultCell", for: indexPath)
-        cell.textLabel?.text = data[indexPath.row]
+        let listItem = data[indexPath.row]
+        cell.textLabel?.text = listItem.value(forKey: "title") as? String
         return cell
     }
     
@@ -105,8 +119,13 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         
         let deleteAction = UIContextualAction(style: .normal,
                                               title: "Sil") { _, _, _ in
-            self.data.remove(at: indexPath.row)
-            tableView.reloadData()
+
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            let managedObjectContext = appDelegate?.persistentContainer.viewContext
+            
+            managedObjectContext?.delete(self.data[indexPath.row])
+            try? managedObjectContext?.save()
+            self.fetch()
         }
         deleteAction.backgroundColor = .systemRed
         
@@ -120,7 +139,13 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
                               defaultButtonHandler: { _ in
                 let text = self.alertController.textFields?.first?.text
                 if text != "" {
-                    self.data[indexPath.row] = text!
+                    let appDelegate = UIApplication.shared.delegate as? AppDelegate
+                    let managedObjectContext = appDelegate?.persistentContainer.viewContext
+                    self.data[indexPath.row].setValue(text, forKey: "title")
+                    //herhangi bir değiştirildiyse
+                    if managedObjectContext!.hasChanges {
+                        try? managedObjectContext?.save()
+                    }
                     self.tableView.reloadData()
                 } else {
                     self.presentWarningAlert()
