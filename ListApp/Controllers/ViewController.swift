@@ -22,8 +22,13 @@ class ViewController: UIViewController {
                      message: "Listedeki bütün ögeleri silmek istediğinize emin misiniz?",
                      defaultButtonTitle: "Evet",
                      cancelButtonTitle: "Vazgeç") { _ in
-            self.data.removeAll()
-            self.tableView.reloadData()
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            let managedObjectContext = appDelegate?.persistentContainer.viewContext
+            for item in self.data {
+                managedObjectContext?.delete(item)
+            }
+            try? managedObjectContext?.save()
+            self.fetch()
         }
     }
     
